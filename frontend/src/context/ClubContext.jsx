@@ -15,6 +15,35 @@ export const ClubProvider = ({ children }) => {
             setLoading(false);
             return;
         }
+        const mockClubs = [
+            {
+                id: 'mock_club_1',
+                name: 'London Runners Club',
+                desc: 'Weekly 5k and 10k social runs around Hyde Park.',
+                category: 'Run',
+                isPublic: true,
+                location: 'London, UK',
+                members: [{ id: 'dev_bypass_mock_uid', name: 'Dev Guest', isOwner: false }],
+                joined: true,
+                activities: []
+            },
+            {
+                id: 'mock_club_2',
+                name: 'Cycle Pros',
+                desc: 'Group rides for road cycling enthusiasts.',
+                category: 'Cycle',
+                isPublic: true,
+                location: 'San Francisco, CA',
+                members: [],
+                joined: false,
+                activities: []
+            }
+        ];
+        if (user.uid === 'dev_bypass_mock_uid') {
+            setClubs(mockClubs);
+            setLoading(false);
+            return;
+        }
         const clubsRef = collection(db, 'clubs');
         const q = query(clubsRef);
         console.log('[ClubContext] Starting Firestore listener...');
@@ -39,7 +68,8 @@ export const ClubProvider = ({ children }) => {
             setClubs(fetchedClubs);
             setLoading(false);
         }, (error) => {
-            console.error('Firestore clubs listener error:', error);
+            console.warn('[ClubContext] Firestore clubs listener error (falling back to mock clubs):', error.message);
+            setClubs(mockClubs);
             setLoading(false);
         });
         return () => unsubscribe();

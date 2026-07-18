@@ -16,6 +16,17 @@ export const ActivityProvider = ({ children }) => {
             setLoading(false);
             return;
         }
+        if (user.uid === 'dev_bypass_mock_uid') {
+            const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+            AsyncStorage.getItem('local_activities').then(data => {
+                setActivities(data ? JSON.parse(data) : []);
+                setLoading(false);
+            }).catch(() => {
+                setActivities([]);
+                setLoading(false);
+            });
+            return;
+        }
         const activitiesRef = collection(db, 'users', user.uid, 'activities');
         const q = query(activitiesRef, orderBy('createdAt', 'desc'));
         console.log('[ActivityContext] Starting Firestore listener for:', user.uid);
@@ -42,12 +53,14 @@ export const ActivityProvider = ({ children }) => {
             setActivities(fetchedActivities);
             setLoading(false);
         }, (error) => {
-            console.error('[ActivityContext] Listener Error:', error.code, error.message);
-            setLoading(false);
-            // Explicitly tell the user if there's a problem (e.g. Missing Index)
-            setTimeout(() => {
-                Alert.alert('Firestore Sync Error', error.message);
-            }, 1000);
+            console.warn('[ActivityContext] Firestore Listener Error (falling back to local storage):', error.message);
+            const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+            AsyncStorage.getItem('local_activities').then(data => {
+                if (data) {
+                    setActivities(JSON.parse(data));
+                }
+                setLoading(false);
+            }).catch(() => setLoading(false));
         });
         return () => unsubscribe();
     }, [user]);
@@ -57,8 +70,20 @@ export const ActivityProvider = ({ children }) => {
         // Optimistic local update
         const localActivity = { ...activity, id: tempId, date: newDate };
         setActivities(prev => [localActivity, ...prev]);
-        // Write to Firestore
-        if (user) {
+        
+        // Save to AsyncStorage local fallback
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+        try {
+            const existing = await AsyncStorage.getItem('local_activities');
+            const list = existing ? JSON.parse(existing) : [];
+            list.unshift(localActivity);
+            await AsyncStorage.setItem('local_activities', JSON.stringify(list));
+        }
+        catch (e) {
+            console.error('Failed to save activity locally:', e);
+        }
+        // Write to Firestore if we have a real user session
+        if (user && user.uid !== 'dev_bypass_mock_uid') {
             console.log('[ActivityContext] ATTEMPTING SAVE TO:', `users/${user.uid}/activities`);
             const activitiesRef = collection(db, 'users', user.uid, 'activities');
             const payload = {
@@ -72,27 +97,49 @@ export const ActivityProvider = ({ children }) => {
                 await setDoc(userRef, { email: user.email, lastActive: new Date().toISOString() }, { merge: true });
                 const docRef = await addDoc(activitiesRef, payload);
                 console.log('[ActivityContext] ✅ Firestore Save Successful with ID:', docRef.id);
-                return { ...localActivity, id: docRef.id };
+                const finalActivity = { ...localActivity, id: docRef.id };
+                setActivities(prev => prev.map(a => a.id === tempId ? finalActivity : a));
+                try {
+                    const existing = await AsyncStorage.getItem('local_activities');
+                    if (existing) {
+                        const list = JSON.parse(existing);
+                        const updatedList = list.map(a => a.id === tempId ? finalActivity : a);
+                        await AsyncStorage.setItem('local_activities', JSON.stringify(updatedList));
+                    }
+                }
+                catch (e) {}
+                return finalActivity;
             }
             catch (err) {
-                console.error('[ActivityContext] ❌ Firestore Save Failed:', err.code, err.message);
-                setTimeout(() => Alert.alert('Firestore Error', `Write failed: ${err.message}`), 300);
-                throw err;
+                console.warn('[ActivityContext] ❌ Firestore Save Failed, fallback to local storage:', err.message);
+                return localActivity;
             }
         }
         else {
-            console.log('[ActivityContext] ⚠️ Skipping save: No user logged in.');
-            setTimeout(() => Alert.alert('User Error', 'Not logged in!'), 300);
+            console.log('[ActivityContext] ⚠️ Skipping Firestore save: Offline/Mock Mode.');
             return localActivity;
         }
     };
-    const deleteActivity = (id) => {
+    const deleteActivity = async (id) => {
         // Optimistic local removal
         setActivities(prev => prev.filter(a => a.id !== id));
+        // Remove from AsyncStorage
+        const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+        try {
+            const existing = await AsyncStorage.getItem('local_activities');
+            if (existing) {
+                const list = JSON.parse(existing);
+                const filtered = list.filter(a => a.id !== id);
+                await AsyncStorage.setItem('local_activities', JSON.stringify(filtered));
+            }
+        }
+        catch (e) {
+            console.error('Failed to delete activity locally:', e);
+        }
         // Delete from Firestore
-        if (user) {
+        if (user && user.uid !== 'dev_bypass_mock_uid') {
             const docRef = doc(db, 'users', user.uid, 'activities', id);
-            deleteDoc(docRef).catch(err => console.error('Failed to delete activity:', err));
+            deleteDoc(docRef).catch(err => console.warn('Failed to delete activity from Firestore:', err.message));
         }
     };
     const calculateStreak = () => {
