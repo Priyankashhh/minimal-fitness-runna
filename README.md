@@ -38,7 +38,15 @@ A distraction-free, strictly black-and-white minimalist fitness tracking applica
    Scan the QR code with your phone's camera (iOS) or the Expo Go app (Android). Or press `w` in the terminal to open the web bundler preview.
 
 ## 📸 Screenshots
-*(Feel free to add screenshots of your App here!)*
+
+| Home (Map View) | Active Challenges |
+| :---: | :---: |
+| ![Home Screen](./screenshots/home.jpg) | ![Challenges Screen](./screenshots/challenges.jpg) |
+
+| User Profile & History | Community Clubs |
+| :---: | :---: |
+| ![Profile Screen](./screenshots/profile.jpg) | ![Clubs Screen](./screenshots/clubs.jpg) |
+
 
 ---
 *Built with simplicity in mind.*
