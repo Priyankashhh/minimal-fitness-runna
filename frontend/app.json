@@ -1,18 +1,18 @@
 {
   "expo": {
-    "name": "frontend",
-    "slug": "frontend",
+    "name": "W2H - Walk to Hike",
+    "slug": "w2h-walk-to-hike",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "frontend",
+    "scheme": "w2h",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true
     },
     "android": {
-      "package": "com.rahul.runna.fitness",
+      "package": "com.priyankashhh.w2h",
       "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -47,10 +47,7 @@
       "reactCompiler": false
     },
     "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "dd276c26-0dae-43ed-b871-de20cd851656"
-      }
+      "router": {}
     }
   }
 }
